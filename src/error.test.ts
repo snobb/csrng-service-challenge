@@ -8,7 +8,7 @@ describe('CsrngError tests', () => {
         { code: CsrngErrorCode.TooManyRequests, httpCode: 429, msg: 'spanner' },
         { code: 42, httpCode: 500, msg: 'invalid server response: {"status":"error","code":42,"reason":"spanner"}' },
     ].forEach(({ code, httpCode, msg }) => {
-        it('should create "Server Unavailable" from response', () => {
+        it(`should create ${CsrngErrorCode[code]} from response`, () => {
             const err = CsrngError.fromResponse({
                 status: 'error',
                 code,

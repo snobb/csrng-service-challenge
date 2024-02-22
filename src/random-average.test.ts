@@ -1,13 +1,17 @@
 import { CsrngErrorCode, CsrngResponse } from './types';
 import { makeFakeFetchFn } from './test-helpers/fake-client';
-import { CsrngError } from './error';
-import { DataSource } from './data-source';
 import { RandomAverage } from './random-average';
+import { CsrngError } from './error';
+
+process.env.DEBUG_LOOP_STOPPED = '1';
 
 describe('RandomAverage tests', () => {
+    afterAll(() => {
+        delete process.env.DEBUG_LOOP_STOPPED;
+    });
+
     describe('update average', () => {
-        const fetchWorker = new DataSource(makeFakeFetchFn<CsrngResponse>([]));
-        const random = new RandomAverage(fetchWorker);
+        const random = new RandomAverage({ client: makeFakeFetchFn<CsrngResponse>([]) });
 
         it('should update the moving average', () => {
             let rand = random.updateAverage(5);
@@ -21,93 +25,58 @@ describe('RandomAverage tests', () => {
     });
 
     describe('getRandom', () => {
-        it('should update average', async () => {
-            const fetchWorker = new DataSource(
-                makeFakeFetchFn<CsrngResponse>([
-                    {
-                        status: 'success',
-                        random: 42,
-                    },
-                    {
-                        status: 'success',
-                        random: 21,
-                    },
-                ]),
-            );
-            const random = new RandomAverage(fetchWorker);
+        let random: RandomAverage;
 
+        it('should update average', async () => {
+            const fakeFetchFn = makeFakeFetchFn<CsrngResponse>([
+                {
+                    status: 'success',
+                    random: 42,
+                },
+                {
+                    status: 'success',
+                    random: 21,
+                },
+                {
+                    status: 'error',
+                    code: CsrngErrorCode.TooManyRequests,
+                },
+            ]);
+
+            random = new RandomAverage({ client: fakeFetchFn });
+            await random.loopTick();
             const avg1 = await random.getAverage();
             expect(avg1).toEqual(42);
 
+            await random.loopTick();
             const avg2 = await random.getAverage();
             expect(avg2).toEqual(31.5);
-        });
 
-        it('should update average', async () => {
-            const fetchWorker = new DataSource(
-                makeFakeFetchFn<CsrngResponse>([
-                    {
-                        status: 'error',
-                        code: CsrngErrorCode.TooManyRequests,
-                    },
-                    {
-                        status: 'success',
-                        random: 42,
-                    },
-                    {
-                        status: 'error',
-                        code: CsrngErrorCode.TooManyRequests,
-                    },
-                    {
-                        status: 'error',
-                        code: CsrngErrorCode.TooManyRequests,
-                    },
-                    {
-                        status: 'success',
-                        random: 21,
-                    },
-                ]),
-            );
-            const random = new RandomAverage(fetchWorker);
-
-            const avg1 = await random.getAverage();
-            expect(avg1).toEqual(42);
-
-            const avg2 = await random.getAverage();
-            expect(avg2).toEqual(31.5);
+            expect(() => random.loopTick()).rejects.toBeInstanceOf(CsrngError);
         });
     });
 
-    [CsrngErrorCode.ServiceUnavailable, CsrngErrorCode.BadRequest, 42].forEach((code) => {
-        it(`should throw on ${CsrngErrorCode[code]}`, async () => {
-            const resp: CsrngResponse = {
-                status: 'error',
-                code: code,
-                reason: 'spanner',
-            };
+    describe('response validation', () => {
+        it('should throw an error if the response status is neither "success" not "error"', () => {
+            const err = { status: 'spanner' };
 
-            const fetchWorker = new DataSource(makeFakeFetchFn<CsrngResponse>([resp]));
-            const random = new RandomAverage(fetchWorker);
-
-            expect(() => random.getAverage()).rejects.toEqual(CsrngError.fromResponse(resp));
+            const ra = new RandomAverage({});
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            expect(() => ra.validate(<any>err)).toThrow();
         });
-    });
 
-    [
-        { code: CsrngErrorCode.ServiceUnavailable, message: 'service unavailable' },
-        { code: CsrngErrorCode.BadRequest, message: 'bad request' },
-        { code: 42 },
-    ].forEach(({ code, message }) => {
-        it(`should throw on ${CsrngErrorCode[code]} and show default message if no reason provided`, async () => {
-            const resp: CsrngResponse = {
-                status: 'error',
-                code: code,
-                reason: message,
-            };
-            const fetchWorker = new DataSource(makeFakeFetchFn<CsrngResponse>([resp]));
-            const random = new RandomAverage(fetchWorker);
+        it('should throw an error if response has status = "success", but no random', () => {
+            const err = { status: 'success' };
+            const ra = new RandomAverage({});
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            expect(() => ra.validate(<any>err)).toThrow();
+        });
 
-            expect(() => random.getAverage()).rejects.toEqual(CsrngError.fromResponse(resp));
+        it('should throw an error if response has status = "error", but no code', () => {
+            const err = { status: 'error' };
+            const ra = new RandomAverage({});
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            expect(() => ra.validate(<any>err)).toThrow();
         });
     });
 });

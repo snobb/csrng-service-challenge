@@ -11,8 +11,8 @@ help:
 
 ## run:		run application
 .PHONY: run
-run: node_modules dist
-	@node --enable-source-maps dist/app.js
+run: dist
+	@node --enable-source-maps dist/run.js
 
 ## test:		run tests
 .PHONY: test

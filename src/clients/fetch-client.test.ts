@@ -7,8 +7,12 @@ const url = `http://${host}:${port}/`;
 
 describe('fetch clients tests', () => {
     let handler: (req: HttpRequest, res: HttpResponse) => void;
-    const shutdown = startServer(host, port, (req, res) => {
-        handler(req, res);
+    let shutdown: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+    beforeAll(async () => {
+        shutdown = await startServer(host, port, (req, res) => {
+            handler(req, res);
+        });
     });
 
     afterAll(() => shutdown());
