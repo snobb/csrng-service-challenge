@@ -1,7 +1,7 @@
 import Fastify, { FastifyReply, FastifyRequest, FastifyServerOptions } from 'fastify';
-import { CsrngResponse, FetchFn } from './types';
-import { RandomAverage } from './random-average';
 import Logger from 'pino';
+import { RandomAverage } from './random-average';
+import { CsrngResponse, FetchFn } from './types';
 
 export type BuildOptions<T> = FastifyServerOptions & {
     client?: FetchFn<T>;
@@ -10,7 +10,7 @@ export type BuildOptions<T> = FastifyServerOptions & {
 
 export async function buildApp(opts: BuildOptions<CsrngResponse> = {}) {
     const log = Logger();
-    const app = Fastify({ logger: log, ...opts });
+    const app = Fastify({ loggerInstance: log, ...opts });
 
     // Provided there is only one endpoint, I'm going to initialise everything
     // inline. In a bigger application I'd probably lifted routes and controllers
