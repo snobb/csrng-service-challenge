@@ -107,7 +107,7 @@ export class RandomAverage {
                 if (err instanceof CsrngError && err.code === 429) {
                     // retry sooner on 429 (aka error type 5 in Csrng)
                     interval = this.config.retryInterval;
-                    this.log.warn('retrying', { interval });
+                    this.log.warn({ interval }, 'retrying');
                 } else {
                     this.log.error(err);
                 }

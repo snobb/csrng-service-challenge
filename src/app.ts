@@ -10,7 +10,7 @@ export type BuildOptions<T> = FastifyServerOptions & {
 
 export async function buildApp(opts: BuildOptions<CsrngResponse> = {}) {
     const log = Logger();
-    const app = Fastify({ logger: log, ...opts });
+    const app = Fastify({ loggerInstance: log, ...opts });
 
     // Provided there is only one endpoint, I'm going to initialise everything
     // inline. In a bigger application I'd probably lifted routes and controllers
